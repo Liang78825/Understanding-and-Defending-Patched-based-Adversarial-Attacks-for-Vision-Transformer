@@ -159,15 +159,7 @@ def main():
 
         if i == 82:
             i = i
-        '''
-        X = transforms.Compose([
-            transforms.Resize((384, 384)),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-        ])(Image.open('/home/liang/vit/imagenet-sample-images-master/n01494475_hammerhead.JPEG')).unsqueeze(0)
-        X = X.cuda()
-        y  = torch.tensor([0]).long().cuda()
-        '''
+
         X = X.cuda()
         y = y.cuda()
         num_patch = 5
@@ -215,6 +207,7 @@ def main():
                         if n != layer_num:
                             out_list[n] = out1[0, y]
                     print('skip of benign output', out_list)
+                    
         if is_deit is False:
             for l in range(layer_num):
                 model.module.transformer.blocks[l].attn.clean = -1
@@ -247,25 +240,6 @@ def main():
 
             if is_patch is False:
                 mask = 1
-
-        if is_deit is False and False:
-            for l in range(12):
-                model.module.transformer.blocks[l].attn.patch = max_patch_index + 1
-                if i == 0:
-                    aa = model.module.transformer.blocks[10].attn.scores[0].mean(0).mean(0).topk(40)[1]
-                    aa = aa[aa % 12 > 3]
-                    aa = aa[aa % 12 < 11]
-                    aa = aa[aa > 12]
-                    aa = aa[aa < 100]
-                else:
-                    aa = model.module.transformer.blocks[10].attn.scores[0].mean(0).mean(0).topk(50)[1]
-                    aa = aa[aa % 12 > 1]
-                    aa = aa[aa % 12 < 11]
-                    aa = aa[aa > 12]
-                    aa = aa[aa < 130]
-                mm = torch.zeros(145, dtype=torch.bool).cuda()
-                mm[aa + 1] = True
-                model.module.transformer.blocks[l].attn.feature = mm
 
         '''adv attack'''
         max_patch_index_matrix = max_patch_index[:, 0]
@@ -531,16 +505,7 @@ def main():
                                         layer_log[n, 2] = layer_log[n, 2] + 1
                                 out_list[n] = out22[0, max_out.tolist()[0]]
                     print('skip list of adv output', out_list)
-                #  stdd = model.module.transformer.blocks[0].attn.scores[0].mean(0).mean(0)[1:].std()
-                #   meann = model.module.transformer.blocks[0].attn.scores[0].mean(0).mean(0)[1:].mean()
 
-                # save_image(   ((model.module.transformer.blocks[0].attn.scores[0].mean(0).mean(0)[1:] - meann) / stdd).view(24,24), '/home/liang/vit/inputss/a' + str(i) + '_0.png')
-                #    save_image(model.module.transformer.blocks[0].attn.scores[1].mean(0).mean(0)[1:].view(24,24), '/home/liang/vit/inputss/a'+str(i)+'_1.png')
-                #   save_image(model.module.transformer.blocks[0].attn.scores[2].mean(0).mean(0)[1:].view(24,24), '/home/liang/vit/inputss/a'+str(i)+'_2.png')
-
-                #      save_image(perturb_x[1], '/home/liang/vit/inputss/' + str(i) + '_1.png')
-
-                #     save_image(perturb_x[2], '/home/liang/vit/inputss/' + str(i) + '_2.png')
                 if is_deit:
                     patch_num = int((model.module.blocks[0].attn.scores.size(2) - 1) ** 0.5)
                 else:
@@ -625,29 +590,7 @@ def main():
 
             out2 = model(perturb_x)
 
-            '''
-            save_image(perturb_x, '/home/liang/vit/123.png')
-            a = []
-            b = []
-            for l in range(11):
-                a.append(model.module.transformer.blocks[l].attn.scores.clone())
-                b.append( model.module.transformer.blocks[l].attn.input )
-            out = model(X)
-
-          #  for l in range(1):
-           #     model.module.transformer.blocks[l].attn.patch = max_patch_index
-
-            out = model(perturb_x)
-
-            for l in range(11):
-                for h in range(12):
-                    ratio = (model.module.transformer.blocks[l].attn.scores - a[l])[:, h].abs().sum() / 576
-                    stdd = (model.module.transformer.blocks[l].attn.scores - a[l]).std()
-                    if h == 0:
-                        save_image((model.module.transformer.blocks[l].attn.input - b[l]), '/home/liang/vit/inputss/'+ str(l) + '.png')
-                   # save_image((model.module.transformer.blocks[l].attn.scores - a[l])[:, h, 330, 1:].view(24,24) / stdd, '/home/liang/vit/atten5/'+ str(l) + '_' + str(h)+ '.png')
-                   # save_image((model.module.transformer.blocks[l].attn.scores - a[l])[:, h]/stdd, '/home/liang/vit/atten2/' + str(l) + '_' + str(h) + '_' + str( ratio.item()) + '.png')
-            '''
+           
 
             classification_result_after_defense = out2.max(1)[1] == y
             if classification_result_after_defense != True:
@@ -669,9 +612,6 @@ def main():
             f.write(str(list_tau_2))
             f.close()
 
-        #   classification_result_after_attack = classification_result_after_attack[classification_result == False]
-        #    false2true_num += classification_result_after_attack.sum().item()
-        #    logger.info("Total False -> True: {}".format(false2true_num))
 
     end_time = time.time()
     msg = meter.get_loss_acc_msg()
