@@ -374,48 +374,8 @@ def main():
         out2 = model(perturb_x)
         classification_result_after_attack = out2.max(1)[1] == y
 
-        if False:
-            with torch.no_grad():
-                delta2 = torch.mul(delta, mask)
-            delta2.requires_grad=True
-            out2 = model(X + delta2)
-            loss = criterion(out2, out2.max(1)[1])
-            grad = torch.autograd.grad(loss,delta2)[0]
-            slc, _ = torch.max(grad[0].abs(), dim=0)
-            slc = (slc - slc.min()) / (slc.max() - slc.min())
-            aa=torch.zeros(24,24)
-            for x in range(24):
-                for y in range(24):
-                    aa[x,y] = slc[x:x+16,y:y+16].mean()
-
-        if False:
-            for l in range(12):
-                rr[0, l] = rr[0, l] + (model.module.transformer.blocks[l].in_x_1[0, max_patch_index + 1].norm() /
-                                       model.module.transformer.blocks[l].in_x[0, max_patch_index + 1].norm())
-
-                rr[1, l] = rr[1, l] + (model.module.transformer.blocks[l].in_x_1[0].norm(dim=1) /
-                                       model.module.transformer.blocks[l].in_x[0].norm(dim=1)).mean()
-
-                for ll in range(12):
-                    rrr[0, l, ll] = rrr[0, l, ll] + torch.cosine_similarity(
-                        model.module.transformer.blocks[l].in_x[0, max_patch_index[0] + 1],
-                        model.module.transformer.blocks[ll].in_x[0, max_patch_index[0] + 1])
-
-                    rrr[1, l, ll] = rrr[1, l, ll] + torch.cosine_similarity(
-                        model.module.transformer.blocks[l].in_x[0].mean(0).view(1, -1),
-                        model.module.transformer.blocks[ll].in_x[0].mean(0).view(1, -1))
-
-            print(rr / count)
-            print(rrr / count)
-            count = count + 1
-
         meter.add_loss_acc("ADV", {'CE': loss.item()}, (classification_result_after_attack.sum().item()), y.size(0))
 
-        if i % 1 == 0 and False:
-            logger.info("Iter: [{:d}/{:d}] Loss and Acc for all models:".format(i, int(len(data_loader) * 2)))
-            msg = meter.get_loss_acc_msg()
-            logger.info(msg)
-            continue
 
         if out0.topk(1)[1] != y:
             continue
@@ -522,16 +482,8 @@ def main():
                         attenn = model.module.transformer.blocks[l].attn.scores[batch].mean(0).mean(0)[1:].view(
                             patch_num, patch_num)
                         aaa, pp = model.module.transformer.blocks[l].attn.scores[0].mean(0)[1:, 1:].mean(0).topk(5)
-                    # atten_diff[:-1,:] += attenn[:-1,:] - attenn[1:,:]
-                    #  atten_diff[1:,:] += attenn[1:,:] -  attenn[:-1,:]
-                    #  atten_diff[:, 1:] += attenn[:, 1:] - attenn[:, :-1]
-                    #  atten_diff[:, :-1] += attenn[:, :-1] - attenn[:, :1]
-                    # print(model.module.transformer.blocks[l].attn.scores[batch].mean(0).mean(0)[1:].topk(3), model.module.transformer.blocks[l].attn.atten_grad[batch].mean(0).mean(0)[1:].topk(3))
 
                     if aaa[0] / aaa[1] > 1.5:
-                        #  stddd = model.module.transformer.blocks[l].attn.scores[batch].mean(0)[1:,1:].std(dim = 1)
-                        #    print('std:',stddd[pp[0]], stddd.mean())
-                        # if stddd[pp[0]] > stddd.mean():
                         list_tau[l].append((aaa[0] / aaa[1]).detach().cpu().numpy().tolist())
                         print('found 1 gap in ', l, 'th layer, with ratio', aaa[0] / aaa[1], ' at ', pp[0].tolist())
                         patch_index.append(pp[0].tolist())
@@ -539,8 +491,6 @@ def main():
                     else:
                         list_tau_2[l].append((aaa[0] / aaa[1]).detach().cpu().numpy().tolist())
 
-                        #  if pp[0] == max_patch_index:
-                    #     layer_log[l, 1] = layer_log[l, 1] + 1
 
                     if aaa[1] / aaa[2] > 1.5:
                         print('found 2 gap in ', l, 'th layer, with ratio', aaa[1] / aaa[2], ' at ', pp[0].tolist(),
